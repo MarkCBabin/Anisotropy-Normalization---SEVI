@@ -1,0 +1,177 @@
+function [out] = Ani_Norm(in)
+close all
+%this will close all figure windows open
+
+if size(in,2) <4
+    disp('Unexpected size or format for input matrix');
+    return
+end
+%this verifies that the inputs are of valid sizes
+    
+len = length(in);
+% collect lenght of input file
+
+x = zeros(len,1);
+ani = zeros(len,1);
+counts = zeros(len,1);
+% create dummy matrices for our useful variables that will soon be
+% populated
+
+for i = 1:len
+       x(i,1) = in(i,4);
+       ani(i,1) = in(i,3);
+       counts(i,1) = in(i,2);
+end
+
+figure;
+plot(x,counts,x,ani)
+title('Plot of SEVI Spectra and Anisotropy')
+xlabel('eBE (cm-1)')
+ylabel('Counts')
+legend('Electron Signal Counts','Anisotropy Counts')
+
+
+prompt1 = '\nEnter the number of peaks you would like to fit.\n';
+str1 = input(prompt1);
+
+out = Gaussfitting(x,counts,ani,str1)
+    %here we run the subfunction defined below for the number of peaks
+    %specified by the prompt above
+
+
+
+
+
+
+
+% still have to determine range of values over which to do the integration
+% (3 sigma from Gaussian, or just by eye - plot bounds if automated), must
+% figure out what to do with regards to integration (not many points in
+% peak, can I integrate my gaussian fit? 
+
+% output area (should be easiest part)
+
+%% Gaussian Fitting of data
+
+function out = Gaussfitting(x,y1,y2,num)
+fprintf('\n\nUse the mouse to select the bounds over which the program will fit your data with a Gaussian.\nPlease select traces in the order they appear in the legend (top to bottom)\nand please click form LEFT to RIGHT.\nIt may help to maximize the plot on your screen.\n')
+
+
+[xx,yy] = ginput(2.*num);
+%this creates two vectors (xx and yy) that correspond to the x and y
+%coordinates selected by the user on Figure 2 using their mouse.
+
+coeffs = zeros(3,num);
+FWHM = zeros(1,num);
+%here, we create the vectors that will be populated in the for loop below.
+%It is important to create these beforehand to improve the speed of the
+%program, particularly if you will be iterating through many data sets.
+
+figure;
+
+for i = 1:num
+    y_min_index = 1+(length(y1).*(i-1));
+    y_max_index = 0+(length(y1).*i);
+    x_min_index = 2.*i-1;
+    x_max_index = 2.*i;
+    domain1 = [xx(x_min_index),xx(x_max_index)];
+    outliers = excludedata(x,y1,'domain',domain1);
+    test1 = fit(x,y1,'gauss1','Exclude', outliers);
+    coeff = coeffvalues(test1)';
+    a1 = coeff(1);
+    b1 = coeff(2);
+    c1 = coeff(3);
+    coeffs(1,i) = a1;
+    coeffs(2,i) = b1;
+    coeffs(3,i) = c1; 
+    hold on
+    plot(test1,x,y1)
+    xlabel('eBE (cm-1)','FontSize',15)
+    ylabel('Counts','FontSize',15)
+    tit2 = sprintf('Plot and Fit of Data');
+    title(tit2,'FontSize',15) 
+    legend off
+    hold off
+end
+
+fprintf('The next displays will repeat until you are satisfied with your fittings.\n')
+
+prompta = '\nWould you like to re-select the x-boundries for your Gaussian fitting?\n If so, enter the number of the peak (from left to right) you would like to correct.\n If not, type the number zero, "0".\n';
+whil_index = input(prompta);
+
+% copied code here starts at line 241 of PL_Master - fix for indices
+
+% while whil_index >= 3 
+%     colnum = whil_index - 2;
+%     disp(figure(whil_index))
+%     [xx(2.*colnum -1),yy(2.*colnum-1)] = ginput(1);
+%     [xx(2.*colnum),yy(2.*colnum)] = ginput(1);
+%     y_min_index = 1+(length(PL).*(colnum-1));
+%     y_max_index = 0+(length(PL).*colnum);
+%     x_min_index = 2.*colnum-1;
+%     x_max_index = 2.*colnum;
+%     domain1 = [xx(x_min_index),xx(x_max_index)];
+%     if wid == 1
+%         outliers = excludedata(ev,PL(y_min_index:y_max_index),'domain',domain1);
+%         test1 = fit(ev,PL(y_min_index:y_max_index),'gauss1','Exclude', outliers);
+%     else 
+%         outliers = excludedata(ev,PL(y_min_index:y_max_index)','domain',domain1);
+%         test1 = fit(ev,PL(y_min_index:y_max_index)','gauss1','Exclude', outliers);  
+%     end
+%     aaa = coeffvalues(test1)';
+%     aa = aaa(1);
+%     bb = aaa(2);
+%     cc = aaa(3);
+%     coeffs(1,colnum) = aa;
+%     coeffs(2,colnum) = bb;
+%     coeffs(3,colnum) = cc./sqrt(2);
+%     %MUST TEST CODE SINCE CORRECTING THIS FOR SIGMA
+%     FWHM(colnum) = 2.*sqrt(2.*log(2)).*cc;
+%     resp_c = resp{colnum};
+%     if wid == 1
+%         figure(whil_index);
+%         subplot(2,1,1);
+%         plot(test1,ev,PL(y_min_index:y_max_index),'Residuals')
+%         xlabel('Energy (eV)','FontSize',15)
+%         ylabel('Counts','FontSize',15)
+%         tit1 = sprintf('Residuals of the fit for %s',resp_c);
+%         title(tit1,'FontSize',15)    
+%         subplot(2,1,2);
+%         plot(test1,ev,PL(y_min_index:y_max_index))
+%         xlabel('Energy (eV)','FontSize',15)
+%         ylabel('Counts','FontSize',15)
+%         tit2 = sprintf('Plot and fit of %s, with FWHM of %s',resp_c,c1);
+%         title(tit2,'FontSize',15)      
+%     else
+%         figure(whil_index);
+%         subplot(2,1,1);
+%         plot(test1,ev,PL(y_min_index:y_max_index)','Residuals')
+%         xlabel('Energy (eV)','FontSize',15)
+%         ylabel('Counts','FontSize',15)
+%         tit1 = sprintf('Residuals of the fit for %s',resp_c);
+%         title(tit1,'FontSize',15)    
+%         subplot(2,1,2);
+%         plot(test1,ev,PL(y_min_index:y_max_index)')
+%         xlabel('Energy (eV)','FontSize',15)
+%         ylabel('Counts','FontSize',15)
+%         tit2 = sprintf('Plot and fit of %s, with FWHM of %s',resp_c,c1);
+%         title(tit2,'FontSize',15)
+%     end
+% prompta = '\nWould you like to re-select the x-boundries for your Gaussian fitting?\n If so, enter the number of the FIGURE you would like to correct.\n If not, type zero.\n';
+% whil_index = input(prompta);
+% end
+
+assignin('base','coeffs',coeffs);
+assignin('base','FWHM',FWHM);
+assignin('base','selected_x',xx);
+
+
+% HERE, put integration things
+
+
+
+
+
+out =[xx,yy]; 
+% this will ultimately be changed to give the normalized anisotropy value
+% for each peak

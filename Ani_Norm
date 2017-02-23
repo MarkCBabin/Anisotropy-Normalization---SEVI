@@ -1,9 +1,19 @@
-% This is a test for the help section of this code
+% This function determines the normalized anisotropy parameter, beta, for
+% each peak seleced in a photoelectron spectra. This is completed by
+% fitting the e- signal to a Gaussian and integrating the area within 3
+% standard deviations of the mean. The anisotropy data is then numerically
+% integrated (trapezoidally) within these same bounds and devided by the
+% value of the e- integral to determine beta, the normalized anisotropy
+% parameter.
 %
+% The function input arguements are:
+% in         =     Matrix of data containing e- counts, anisotropy counts,
+% and eBE (or any desired 'x' value) in column 2, 3, and 4 respectively
 %
-%
-% TEST
+% The function output arguments are:
+% beta       =     Matrix of normalized beta values for each peak selected
 
+%% End header - begin Ani_Norm (Anisotropy_Normalization)
 function [out] = Ani_Norm(in)
 close all
 %this will close all figure windows open
@@ -28,6 +38,7 @@ for i = 1:len
        ani(i,1) = in(i,3);
        counts(i,1) = in(i,2);
 end
+% here we populate the column vectors 'x', 'ani', and 'counts' 
 
 figure;
 plot(x,counts,x,ani)
@@ -35,7 +46,7 @@ title('Plot of SEVI Spectra and Anisotropy')
 xlabel('eBE (cm-1)')
 ylabel('Counts')
 legend('Electron Signal Counts','Anisotropy Counts')
-
+%plotting of the raw data
 
 prompt1 = '\nPlease enter the number of peaks you would like to fit.\n';
 str1 = input(prompt1);
@@ -44,16 +55,9 @@ if str1 < 1
 else
     out = Gaussfitting(x,counts,ani,str1);
 end
-    %here we run the subfunction defined below for the number of peaks
-    %specified by the prompt above
+%here we run the subfunction defined below for the number of peaks
+%specified by the prompt above
 
-
-
-
-% must figure out what to do with regards to integration of anisotropy 
-% output normalized area (should be easiest part)
-
-%% Gaussian Fitting of data
 
 function out = Gaussfitting(x,y1,y2,num)
 fprintf('\n\nUse the mouse to select the bounds over which the program will fit your data with a Gaussian.\nPlease select traces in the order they appear in the legend (top to bottom)\nand please click form LEFT to RIGHT.\nIt may help to maximize the plot on your screen.\n')
@@ -75,6 +79,8 @@ for i = 1:num
     domain1 = [xx(x_min_index),xx(x_max_index)];
     outliers = excludedata(x,y1,'domain',domain1);
     test1 = fit(x,y1,'gauss1','Exclude', outliers);
+    %here we devise a scheme to fit the data only within the selected
+    %bounds
     coeff = coeffvalues(test1)';
     a1 = coeff(1);
     b1 = coeff(2);
@@ -82,6 +88,13 @@ for i = 1:num
     coeffs(1,i) = a1;
     coeffs(2,i) = b1;
     coeffs(3,i) = c1; 
+    % here we extract the fits from the Gaussian distribution of the form:
+    % a1*exp((x-b1)/c1)^2 and convert c2 to the standard deviation
+% coeffs will be a matrix of the form
+%
+%      a1  a1  a1  ...  a1
+%      b1  b1  b1  ...  b1
+%      c1  c1  c1  ...  c1
     hold on
     thisplot = plot(test1,x,y1);
     set(thisplot, 'Linewidth',2)
@@ -93,27 +106,35 @@ for i = 1:num
     legend off
     plot(x,y2)
     hold off
+    % plotting of the fit and the raw data
     lbound(i) = coeffs(2,i) - 3.*coeffs(3,i);
-    rbound(i) = coeffs(2,i) + 3.*coeffs(3,i);
+    ubound(i) = coeffs(2,i) + 3.*coeffs(3,i);
     vline(lbound(i),'k');
-    rline = vline(rbound(i),'g');
+    rline = vline(ubound(i),'g');
     set(rline, 'Color',[0,0.6,0])
-    strng = {'lbound of integral = black', 'rbound of integral = green'};
+    strng = {'lbound of integral = black', 'ubound of integral = green'};
     dim = [.2 .5 .3 .3];
     annotation('textbox',dim,'String',strng,'FitBoxToText','on');
+    % we create lower and upper bounds for integration and show them based
+    % on 3sigma above/below the mean of the fit. These are then shown on
+    % the plot using the vline function (built below). Finally, an
+    % annotation textbox is created to assist users.
 end
 
 fprintf('The next displays will repeat until you are satisfied with your fittings.\n')
 
 prompta = '\nWould you like to re-select the x-boundries for your Gaussian fitting?\n If so, enter the number of the peak (from left to right) you would like to correct.\n If not, type the number zero, "0".\n';
 whil_index = input(prompta);
+% this prompt determines if users wish to refit any curve, and the input is
+% used to qualify the while loop below
+
 while whil_index >= 1 
-    colnum = whil_index;
+    peaknum = whil_index;
     disp(figure(1))
-    [xx(2.*colnum -1),yy(2.*colnum-1)] = ginput(1);
-    [xx(2.*colnum),yy(2.*colnum)] = ginput(1);
-    x_min_index = 2.*i-1;
-    x_max_index = 2.*i;
+    [xx(2.*peaknum -1),yy(2.*peaknum-1)] = ginput(1);
+    [xx(2.*peaknum),yy(2.*peaknum)] = ginput(1);
+    x_min_index = 2.*peaknum-1;
+    x_max_index = 2.*peaknum;
     domain1 = [xx(x_min_index),xx(x_max_index)];
     outliers = excludedata(x,y1,'domain',domain1);
     test1 = fit(x,y1,'gauss1','Exclude', outliers);
@@ -121,28 +142,26 @@ while whil_index >= 1
     aa = aaa(1);
     bb = aaa(2);
     cc = aaa(3);
-    coeffs(1,colnum) = aa;
-    coeffs(2,colnum) = bb;
-    coeffs(3,colnum) = cc./sqrt(2);
+    coeffs(1,peaknum) = aa;
+    coeffs(2,peaknum) = bb;
+    coeffs(3,peaknum) = cc./sqrt(2);
     figure(2);
     hold on
     plot(test1,x,y1)
     legend off
     hold off  
-prompta = '\nWould you like to re-select the x-boundries for your Gaussian fitting?\n If so, enter the number of the FIGURE you would like to correct.\n If not, type zero.\n';
-whil_index = input(prompta);
+    prompta = '\nWould you like to re-select the x-boundries for your Gaussian fitting?\n If so, enter the number of the FIGURE you would like to correct.\n If not, type zero.\n';
+    whil_index = input(prompta);
 end
+% this really repeats what is happening in the above for loop, but just for
+% the particular peak indicated by the user's input
 
-if whil_index == 0
-    gaus = @(x) coeff(1,i).*exp(-((x-coeffs(2,i))./coeffs(3,i)).^2);
-    inti(i) = integral(gaus,lbound(i),rbound(i));
-else
-    for i = 1:num
+for i = 1:num
     figure(2)
     lbound(i) = coeffs(2,i) - 3.*coeffs(3,i);
-    rbound(i) = coeffs(2,i) + 3.*coeffs(3,i);
+    ubound(i) = coeffs(2,i) + 3.*coeffs(3,i);
     vline(lbound(i),'k');
-    rline = vline(rbound(i),'g');
+    rline = vline(ubound(i),'g');
     set(rline, 'Color',[0,0.6,0])
     strng = {'lbound of integral = black', 'rbound of integral = green'};
     dim = [.2 .5 .3 .3];
@@ -150,21 +169,33 @@ else
     hold on
     plot(x,y2)
     hold off
-    gaus = @(x) coeff(1,i).*exp(-((x-coeffs(2,i))./coeffs(3,i)).^2);
-    inti(i) = integral(gaus,lbound(i),rbound(i));
-%    x_ani_inti = 
-%    y_ani_inti =    
-%    ani_inti(i) = trapz(x_ani_inti,y_ani_inti);
-
-% NEED TO CREATE BOUNDS OVER WHICH TO INTEGRATE, AND ALSO DEVISE AN
-% INTERPOLATION FUNCTION, OR JUST LEAVE THIS UP TO MYSELF IN ORIGIN
+    gaus = @(x) coeffs(1,i).*exp(-((x-coeffs(2,i))./coeffs(3,i)).^2);
+    inti(i) = integral(gaus,lbound(i),ubound(i));
+    % here we create a Gaussian dist. as a function to be integrated for
+    % the e- count data
+    x_bar1 = x.*(x>=lbound(i));
+    x_bar  = x_bar1.*(x_bar1<=ubound(i));
+    wide = size(x,2);
+    x_wide = repmat(x_bar,1,wide);
+    x_bi = x.*logical(x_wide);
+    y_bi = y2.*logical(x_wide);
+    x_ani_inti = x_bi(any(x_bi,2),:);  
+    y_ani_inti = y_bi(any(y_bi,2),:);
+    % this section creates a new set of x and y vectors for the anisotropy
+    % data so it can be numerically integrated with the trapz function
+    % within the specified bounds
+    if x_ani_inti(end) - x_ani_inti(1) < 0
+        x_ani_inti = x_ani_inti.*-1;
     end
+        % flips the sign of x if it is decreasing (as this will flip sign
+        % in trapz below, important to get correct sign)
+    ani_inti(i) = trapz(x_ani_inti,y_ani_inti);
+% LOOK AT FINDING A WAY TO INTERPOLATE THIS DATA OTHERWISE SHOULD BE OKAY
 end
 
 
-
-% beta = inti./ani_inti
-out = inti %beta;
+beta = inti./ani_inti;
+out = beta;
 
 %% Using a verticle line plotting tool I found online that was the best I found, copied from their original file including their comments
 function hhh=vline(x,in1,in2)

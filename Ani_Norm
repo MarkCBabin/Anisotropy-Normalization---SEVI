@@ -12,7 +12,8 @@
 %
 % The function output arguments are:
 % beta       =     Matrix of normalized beta values for each peak selected
-
+% 
+%
 %% End header - begin Ani_Norm (Anisotropy_Normalization)
 function [out] = Ani_Norm(in)
 close all
@@ -163,9 +164,6 @@ for i = 1:num
     vline(lbound(i),'k');
     rline = vline(ubound(i),'g');
     set(rline, 'Color',[0,0.6,0])
-    strng = {'lbound of integral = black', 'rbound of integral = green'};
-    dim = [.2 .5 .3 .3];
-    annotation('textbox',dim,'String',strng,'FitBoxToText','on');
     hold on
     plot(x,y2)
     hold off
@@ -187,12 +185,25 @@ for i = 1:num
     if x_ani_inti(end) - x_ani_inti(1) < 0
         x_ani_inti = x_ani_inti.*-1;
     end
-        % flips the sign of x if it is decreasing (as this will flip sign
-        % in trapz below, important to get correct sign)
+	% flips the sign of x if it is decreasing (as this will flip sign
+	% in trapz below, important to get correct sign)
+    len = length(x_ani_inti);
+    interp_x = zeros(2.*len,1);
+    interp_x(end) = x_ani_inti(end);
+    interp_ani = zeros(2.*len,1);
+    interp_ani(end) = y2(end);
+   for n = 1:len-1
+       index = (2.*n) - 1;
+       interp_x(index,1) = x_ani_inti(n,1);
+       interp_x(2.*n,1) = (x_ani_inti(n,1)+x_ani_inti(n+1,1))./2;
+       interp_ani(index,1) = y2(n,1);
+       interp_ani(2.*n,1) = (y2(n,1)+y2(n+1,1))./2;
+   end
+    %this block of text interpolates the selected x and y data for each
+    %integration. I am unsure if this actually improves the values of the
+    %process, tbh.
     ani_inti(i) = trapz(x_ani_inti,y_ani_inti);
-% LOOK AT FINDING A WAY TO INTERPOLATE THIS DATA OTHERWISE SHOULD BE OKAY
 end
-
 
 beta = inti./ani_inti;
 out = beta;

@@ -205,7 +205,7 @@ for i = 1:num
     ani_inti(i) = trapz(x_ani_inti,y_ani_inti);
 end
 
-beta = inti./ani_inti;
+beta = ani_inti./inti;
 out = beta;
 
 %% Using a verticle line plotting tool I found online that was the best I found, copied from their original file including their comments
